@@ -3,27 +3,33 @@ const Order = require("../models/order");
 
 class AdminService {
   async addProduct(productData) {
-    const { name, description, images, quantity, price, category } = productData;
-    
-    let product = new Product({
-      name,
-      description,
-      images,
-      quantity,
-      price,
-      category,
-    });
-    
-    product = await product.save();
-    return product;
+    try {
+      return await productService.createProduct(productData);
+    } catch (error) {
+      throw new Error(`Failed to add product: ${error.message}`);
+    }
   }
 
-  async getAllProducts() {
-    return await Product.find({});
+  async getAllProducts(options) {
+    return await productService.getAllProducts(options);
+  }
+
+  async updateProduct(id, updateData) {
+    return await productService.updateProduct(id, updateData);
   }
 
   async deleteProduct(id) {
-    return await Product.findByIdAndDelete(id);
+    // Check if product is in any pending orders
+    const ordersWithProduct = await Order.countDocuments({
+      "products.product": id,
+      status: { $in: ["pending", "processing"] }
+    });
+
+    if (ordersWithProduct > 0) {
+      throw new Error("Cannot delete product with pending orders");
+    }
+
+    return await productService.deleteProduct(id);
   }
 
   async getAllOrders() {
@@ -39,50 +45,6 @@ class AdminService {
     order.status = status;
     order = await order.save();
     return order;
-  }
-
-  async getAnalytics() {
-    const orders = await Order.find({});
-    let totalEarnings = 0;
-
-    for (let i = 0; i < orders.length; i++) {
-      for (let j = 0; j < orders[i].products.length; j++) {
-        totalEarnings +=
-          orders[i].products[j].quantity * orders[i].products[j].product.price;
-      }
-    }
-
-    // Category wise earnings
-    const mobileEarnings = await this.fetchCategoryWiseProduct("Mobiles");
-    const essentialEarnings = await this.fetchCategoryWiseProduct("Essentials");
-    const applianceEarnings = await this.fetchCategoryWiseProduct("Appliances");
-    const booksEarnings = await this.fetchCategoryWiseProduct("Books");
-    const fashionEarnings = await this.fetchCategoryWiseProduct("Fashion");
-
-    return {
-      totalEarnings,
-      mobileEarnings,
-      essentialEarnings,
-      applianceEarnings,
-      booksEarnings,
-      fashionEarnings,
-    };
-  }
-
-  async fetchCategoryWiseProduct(category) {
-    let earnings = 0;
-    let categoryOrders = await Order.find({
-      "products.product.category": category,
-    });
-
-    for (let i = 0; i < categoryOrders.length; i++) {
-      for (let j = 0; j < categoryOrders[i].products.length; j++) {
-        earnings +=
-          categoryOrders[i].products[j].quantity *
-          categoryOrders[i].products[j].product.price;
-      }
-    }
-    return earnings;
   }
 }
 

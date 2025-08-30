@@ -10,7 +10,6 @@ router.get("/", (req, res) => {
   res.json({ message: "E-commerce API is running!" });
 });
 
-// Mount routes with proper prefixes
 router.use("/auth", authRoutes);
 router.use("/admin", adminRoutes);
 router.use("/", productRoutes);
